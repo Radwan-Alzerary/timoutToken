@@ -10,11 +10,6 @@ dotenv.config();
 
 const execPromise = util.promisify(exec);
 
-// Paths to CA files
-const CA_CERT_PATH = path.join(__dirname, '../certs/ca.crt');
-const CA_KEY_PATH = path.join(__dirname, '../certs/ca.key');
-const CA_SERIAL_PATH = path.join(__dirname, '../certs/ca.srl');
-
 // Function to generate and sign certificate
 const generateAndSignCert = async (uuid) => {
   try {
@@ -42,7 +37,7 @@ const generateAndSignCert = async (uuid) => {
     console.log(`Generated CSR for UUID: ${uuid}`);
 
     // 3. Sign CSR with CA to generate Device Certificate
-    const signCertCmd = `openssl x509 -req -in "${deviceCsrPath}" -CA "${CA_CERT_PATH}" -CAkey "${CA_KEY_PATH}" -CAcreateserial -out "${deviceCertPath}" -days 365 -sha256`;
+    const signCertCmd = `openssl x509 -req -in "${deviceCsrPath}" -CA "${process.env.CA_CERT_PATH}" -CAkey "${process.env.CA_KEY_PATH}" -CAcreateserial -out "${deviceCertPath}" -days 365 -sha256`;
     await execPromise(signCertCmd);
     console.log(`Signed certificate for UUID: ${uuid}`);
 
@@ -65,9 +60,10 @@ const generateAndSignCert = async (uuid) => {
 };
 
 // Function to generate a new UUID and certificate
-const createSignedCert = async () => {
-  const uuid = uuidv4();
-  const certData = await generateAndSignCert(uuid);
+const createSignedCert = async (uuid) => {
+  // If UUID is provided, use it; otherwise, generate a new one
+  const certUuid = uuid || uuidv4();
+  const certData = await generateAndSignCert(certUuid);
   return certData;
 };
 

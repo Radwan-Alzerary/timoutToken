@@ -8,9 +8,21 @@ const { createSignedCert } = require('../utils/generateCert');
 
 dotenv.config();
 
-// @desc    Generate a token with expiration time
-// @route   POST /api/token/generate
-// @access  Public
+// Paths to CA files
+const CA_CERT_PATH = path.join(__dirname, '../', process.env.CA_CERT_PATH);
+
+// Function to read CA certificate
+const getCACert = () => {
+  try {
+    const caCert = fs.readFileSync(CA_CERT_PATH, 'utf8');
+    return caCert;
+  } catch (error) {
+    console.error('Error reading CA certificate:', error);
+    return null;
+  }
+};
+
+// @desc    Generate a token with expiration time (Public)
 const generateTokenRoute = async (req, res) => {
   const { timeInMinutes } = req.body;
 
@@ -49,9 +61,7 @@ const generateTokenRoute = async (req, res) => {
   }
 };
 
-// @desc    Submit token details and receive UUID with signed cert
-// @route   POST /api/token/submit
-// @access  Public
+// @desc    Submit token details and receive UUID with signed cert (Public)
 const submitToken = async (req, res) => {
   const { Token: token, "Device type": deviceType, Chip: chip, Version: version } = req.body;
 
@@ -87,9 +97,13 @@ const submitToken = async (req, res) => {
 
     await existingToken.save();
 
+    // Get CA Certificate
+    const caCert = getCACert();
+
     res.status(200).json({
       uuid: existingToken.uuid,
       signedCert: certData.signedCert,
+      caCert, // Include CA certificate in the response
     });
   } catch (err) {
     console.error(err);
@@ -97,9 +111,7 @@ const submitToken = async (req, res) => {
   }
 };
 
-// @desc    Protected: Generate token with expiration time
-// @route   POST /api/token/generate-protected
-// @access  Private
+// @desc    Generate a token with expiration time (Protected)
 const generateTokenProtected = async (req, res) => {
   const { timeInMinutes } = req.body;
 
@@ -138,9 +150,7 @@ const generateTokenProtected = async (req, res) => {
   }
 };
 
-// @desc    Protected: Submit token details and receive UUID with signed cert
-// @route   POST /api/token/submit-protected
-// @access  Private
+// @desc    Submit token details and receive UUID with signed cert (Protected)
 const submitTokenProtected = async (req, res) => {
   const { Token: token, "Device type": deviceType, Chip: chip, Version: version } = req.body;
 
@@ -176,9 +186,13 @@ const submitTokenProtected = async (req, res) => {
 
     await existingToken.save();
 
+    // Get CA Certificate
+    const caCert = getCACert();
+
     res.status(200).json({
       uuid: existingToken.uuid,
       signedCert: certData.signedCert,
+      caCert, // Include CA certificate in the response
     });
   } catch (err) {
     console.error(err);

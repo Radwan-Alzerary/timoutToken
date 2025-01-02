@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const TokenSchema = new mongoose.Schema({
   token: {
     type: String,
-    required: true,
+    // required: true,
     unique: true,
   },
   expiresAt: {
@@ -13,24 +13,24 @@ const TokenSchema = new mongoose.Schema({
   },
   uuid: {
     type: String,
-    required: true,
+    // required: true,
     unique: true,
   },
   deviceType: {
     type: String,
-    required: true,
+    // required: true,
   },
   chip: {
     type: String,
-    required: true,
+    // required: true,
   },
   version: {
     type: String,
-    required: true,
+    // required: true,
   },
   signedCert: {
     type: String, // Path to the signed certificate
-    required: true,
+    // required: true,
   },
 });
 
