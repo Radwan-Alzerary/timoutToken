@@ -52,8 +52,8 @@ const generateTokenRoute = async (req, res) => {
 
     res.status(201).json({
       token: newToken.token,
-      expiresAt: newToken.expiresAt,
-      uuid: newToken.uuid,
+    //   expiresAt: newToken.expiresAt,
+    //   uuid: newToken.uuid,
     });
   } catch (err) {
     console.error(err);
