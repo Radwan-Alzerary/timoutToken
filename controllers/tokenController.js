@@ -103,6 +103,7 @@ const submitToken = async (req, res) => {
     res.status(200).json({
       uuid: existingToken.uuid,
       signedCert: certData.signedCert,
+      privetKey: certData.privetCert,
       caCert, // Include CA certificate in the response
     });
   } catch (err) {

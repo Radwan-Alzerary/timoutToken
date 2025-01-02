@@ -47,11 +47,14 @@ const generateAndSignCert = async (uuid) => {
 
     // Read the signed certificate content
     const signedCert = fs.readFileSync(deviceCertPath, 'utf8');
+    const privetCert = fs.readFileSync(deviceKeyPath, 'utf8');
 
     return {
       uuid,
       certPath: deviceCertPath,
+      priveCertPath: deviceKeyPath,
       signedCert,
+      privetCert
     };
   } catch (error) {
     console.error(`Error generating certificate for UUID: ${uuid}`, error);
