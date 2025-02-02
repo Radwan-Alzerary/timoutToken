@@ -6,7 +6,8 @@ const authRoutes = require('./routes/authRoutes');
 const tokenRoutes = require('./routes/tokenRoutes');
 const fs = require('fs');
 const path = require('path');
-const http = require('http'); // Import http to create server
+const http = require('http'); // For creating HTTP server
+const mqtt = require('mqtt'); // Import MQTT
 
 dotenv.config();
 
@@ -22,7 +23,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/token', tokenRoutes);
 
-// Serve certificates statically
+// Serve certificates statically (if needed)
 app.use('/certs', express.static(path.join(__dirname, 'certs')));
 
 // Default Route
@@ -43,9 +44,32 @@ const server = http.createServer(app);
 const { Server } = require('socket.io');
 const io = new Server(server, {
   cors: {
-    origin: "*", // Allow all origins - adjust this for production!
+    origin: "*", // Adjust this for production!
     methods: ["GET", "POST"]
   }
+});
+
+// MQTT broker connection configuration with mutual TLS
+const mqttBrokerUrl = process.env.MQTT_BROKER_URL || 'mqtts://mqtt.lygoiq.com:8883'; // Use mqtts:// for TLS
+const mqttOptions = {
+  username: process.env.MQTT_USERNAME,
+  password: process.env.MQTT_PASSWORD,
+  // Read the certificate files. Adjust the paths if necessary.
+  key: fs.readFileSync(path.join(__dirname, 'certs', 'mqttTest.key')),
+  cert: fs.readFileSync(path.join(__dirname, 'certs', 'mqttTest.crt')),
+  ca: fs.readFileSync(path.join(__dirname, 'certs', 'mqttCa.crt')),
+  rejectUnauthorized: true, // Only accept authorized certificates
+  // Additional options as required by your MQTT broker.
+};
+
+const mqttClient = mqtt.connect(mqttBrokerUrl, mqttOptions);
+
+mqttClient.on('connect', () => {
+  console.log('Connected to MQTT broker with mTLS');
+});
+
+mqttClient.on('error', (err) => {
+  console.error('MQTT Connection error: ', err);
 });
 
 // Handle Socket.IO connections
@@ -55,8 +79,26 @@ io.on('connection', (socket) => {
   // Listen for a custom "data" event from clients
   socket.on('data', (data) => {
     console.log('Received data via socket:', data);
-    
-    // Example: broadcast the received data to all connected clients
+
+    // Ensure that the data object contains an "id" property.
+    if (!data.id) {
+      console.error('Data does not contain an "id" property. Cannot determine MQTT topic.');
+      return;
+    }
+
+    // Construct the MQTT topic, e.g., "commands/<deviceId>"
+    const topic = `aswar/${data.id}`;
+
+    // Publish the message to the MQTT broker.
+    mqttClient.publish(topic, JSON.stringify(data), (err) => {
+      if (err) {
+        console.error('Failed to publish to MQTT topic:', topic, err);
+      } else {
+        console.log(`Published data to MQTT topic "${topic}"`);
+      }
+    });
+
+    // Optionally, broadcast the data to all connected Socket.IO clients
     io.emit('data', data);
   });
 
