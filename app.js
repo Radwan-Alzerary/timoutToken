@@ -6,6 +6,7 @@ const authRoutes = require('./routes/authRoutes');
 const tokenRoutes = require('./routes/tokenRoutes');
 const fs = require('fs');
 const path = require('path');
+const http = require('http'); // Import http to create server
 
 dotenv.config();
 
@@ -35,7 +36,36 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something broke!');
 });
 
-// Start Server
-const PORT = process.env.PORT || 5000;
+// Create an HTTP server using the Express app
+const server = http.createServer(app);
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Setup Socket.IO on the HTTP server
+const { Server } = require('socket.io');
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Allow all origins - adjust this for production!
+    methods: ["GET", "POST"]
+  }
+});
+
+// Handle Socket.IO connections
+io.on('connection', (socket) => {
+  console.log(`New client connected: ${socket.id}`);
+
+  // Listen for a custom "data" event from clients
+  socket.on('data', (data) => {
+    console.log('Received data via socket:', data);
+    
+    // Example: broadcast the received data to all connected clients
+    io.emit('data', data);
+  });
+
+  // Handle client disconnect
+  socket.on('disconnect', () => {
+    console.log(`Client disconnected: ${socket.id}`);
+  });
+});
+
+// Start the server
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
