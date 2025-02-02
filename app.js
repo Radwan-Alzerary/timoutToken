@@ -79,7 +79,7 @@ io.on('connection', (socket) => {
   // Listen for a custom "data" event from clients
   socket.on('data', (data) => {
     console.log('Received data via socket:', data);
-
+    console.log(JSON.parse(data))
     // Ensure that the data object contains an "id" property.
     if (!data.id) {
       console.error('Data does not contain an "id" property. Cannot determine MQTT topic.');
