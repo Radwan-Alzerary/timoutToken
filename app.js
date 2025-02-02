@@ -82,7 +82,7 @@ io.on('connection', (socket) => {
     const JsonData  =  JSON.parse(data)
     console.log(data)
     // Ensure that the data object contains an "id" property.
-    if (!data.uuid) {
+    if (!JsonData.uuid) {
       console.error('Data does not contain an "id" property. Cannot determine MQTT topic.');
       return;
     }
