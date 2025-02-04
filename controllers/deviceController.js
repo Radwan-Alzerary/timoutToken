@@ -5,18 +5,17 @@ const User = require('../models/User');
 /**
  * @desc    Create new device
  * @route   POST /devices
- * @access  Private (assuming user must be logged in)
+ * @access  Private
  */
 exports.createDevice = async (req, res) => {
   try {
-    // 1. Get data from request body
+    // Extract from request body
     const { uuid, deviceType, chip, version, isGateway, isEndDevice, gatewayDevice } = req.body;
 
-    // 2. Suppose we have userId from auth middleware or token
-    const userId = req.user._id; 
-    // OR if it's in the body for test, const { userId } = req.body;
+    // We assume req.user is set by the 'protect' middleware (i.e., the logged-in user)
+    const userId = req.user._id;
 
-    // 3. Create device in DB
+    // 1. Create the device in DB
     const newDevice = new Device({
       uuid,
       deviceType,
@@ -25,11 +24,11 @@ exports.createDevice = async (req, res) => {
       isGateway,
       isEndDevice,
       gatewayDevice,
-      owner: userId, // link to user
+      owner: userId, // Link to user
     });
     const savedDevice = await newDevice.save();
 
-    // 4. Update user document to add this device
+    // 2. Add this device to the user's devices array
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -50,14 +49,13 @@ exports.createDevice = async (req, res) => {
 /**
  * @desc    Get all devices
  * @route   GET /devices
- * @access  Private or Public (depending on your use case)
+ * @access  Private
  */
 exports.getAllDevices = async (req, res) => {
   try {
-    // If you want to filter by user, you can do so
-    // const userId = req.user._id;
-    // const devices = await Device.find({ owner: userId });
-
+    // If you want to return only the current user's devices:
+    // const devices = await Device.find({ owner: req.user._id }).populate('owner', 'username');
+    // Otherwise, get all devices:
     const devices = await Device.find().populate('owner', 'username');
     return res.status(200).json(devices);
   } catch (error) {
@@ -67,20 +65,27 @@ exports.getAllDevices = async (req, res) => {
 };
 
 /**
- * @desc    Get single device by ID
+ * @desc    Get single device by ID; if gateway, populate sub-devices
  * @route   GET /devices/:id
- * @access  Private or Public
+ * @access  Private
  */
 exports.getDeviceById = async (req, res) => {
   try {
     const deviceId = req.params.id;
-    const device = await Device.findById(deviceId).populate('owner', 'username');
+
+    // Find device and populate owner and gatewayDevice
+    // This will include any sub-devices if the device is a gateway.
+    const device = await Device.findById(deviceId)
+      .populate('owner', 'username')
+      .populate('gatewayDevice'); // Populate sub-devices if it's a gateway
+
     if (!device) {
       return res.status(404).json({ message: 'Device not found' });
     }
+
     return res.status(200).json(device);
   } catch (error) {
-    console.error('Error getting device:', error);
+    console.error('Error getting device by ID:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -93,18 +98,17 @@ exports.getDeviceById = async (req, res) => {
 exports.updateDevice = async (req, res) => {
   try {
     const deviceId = req.params.id;
-    const { 
-      uuid, 
-      deviceType, 
-      chip, 
-      version, 
-      isGateway, 
-      isEndDevice, 
-      gatewayDevice 
+    const {
+      uuid,
+      deviceType,
+      chip,
+      version,
+      isGateway,
+      isEndDevice,
+      gatewayDevice,
     } = req.body;
 
-    // Optionally, you can verify the user is the owner before updating
-    // e.g. if (req.user._id !== device.owner.toString()) { ... }
+    // Optionally, you can verify the user is the owner before updating.
 
     const updatedDevice = await Device.findByIdAndUpdate(
       deviceId,
@@ -142,18 +146,18 @@ exports.updateDevice = async (req, res) => {
 exports.deleteDevice = async (req, res) => {
   try {
     const deviceId = req.params.id;
-
     const deviceToDelete = await Device.findById(deviceId);
+
     if (!deviceToDelete) {
       return res.status(404).json({ message: 'Device not found' });
     }
 
-    // Optional: Check if the user is the owner
+    // Optionally, check ownership:
     // if (deviceToDelete.owner.toString() !== req.user._id.toString()) {
     //   return res.status(403).json({ message: 'Not authorized' });
     // }
 
-    // Remove device from user’s devices array
+    // Remove device from user's devices array
     await User.findByIdAndUpdate(deviceToDelete.owner, {
       $pull: { devices: deviceId },
     });
@@ -164,6 +168,55 @@ exports.deleteDevice = async (req, res) => {
     return res.status(200).json({ message: 'Device deleted successfully' });
   } catch (error) {
     console.error('Error deleting device:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+/**
+ * @desc    Create a new Zigbee device and attach it to an existing Gateway
+ * @route   POST /devices/:gatewayId/zigbee
+ * @access  Private
+ */
+exports.addZigbeeDeviceToGateway = async (req, res) => {
+  try {
+    const { gatewayId } = req.params;
+    // We'll allow request body to override certain fields
+    const { uuid, version } = req.body;
+
+    // 1. Find the gateway device
+    const gatewayDevice = await Device.findById(gatewayId);
+    if (!gatewayDevice) {
+      return res.status(404).json({ message: 'Gateway device not found' });
+    }
+
+    // 2. Check if the found device is actually a gateway
+    if (!gatewayDevice.isGateway) {
+      return res.status(400).json({ message: 'Provided device is not a gateway' });
+    }
+
+    // 3. Create a new Zigbee end device
+    const newZigbeeDevice = new Device({
+      uuid: uuid || `zigbee-${Date.now()}`,
+      deviceType: 'ZigbeeDevice',
+      chip: 'Zigbee',
+      version: version || '1.0',
+      isGateway: false,
+      isEndDevice: true,
+      owner: req.user._id, // Link to current user
+    });
+
+    const savedZigbeeDevice = await newZigbeeDevice.save();
+
+    // 4. Attach the new Zigbee device to the gateway
+    gatewayDevice.gatewayDevice.push(savedZigbeeDevice._id);
+    await gatewayDevice.save();
+
+    return res.status(201).json({
+      message: 'Zigbee device created and attached to gateway',
+      zigbeeDevice: savedZigbeeDevice,
+    });
+  } catch (error) {
+    console.error('Error adding Zigbee device to gateway:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 };

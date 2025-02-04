@@ -2,30 +2,31 @@
 const express = require('express');
 const router = express.Router();
 
+// Import controller functions
 const {
   createDevice,
   getAllDevices,
   getDeviceById,
   updateDevice,
   deleteDevice,
+  addZigbeeDeviceToGateway,
 } = require('../controllers/deviceController');
 
-// You may have an auth middleware here if needed
+// Import auth middleware
 const { protect } = require('../middlewares/authMiddleware');
 
-// CREATE
-router.post('/', protect,  createDevice);
+// ----------------------
+// CRUD Endpoints
+// ----------------------
+router.post('/', protect, createDevice);        // Create
+router.get('/', protect, getAllDevices);       // Read All
+router.get('/:id', protect, getDeviceById);    // Read One
+router.put('/:id', protect, updateDevice);     // Update
+router.delete('/:id', protect, deleteDevice);  // Delete
 
-// READ ALL
-router.get('/',  protect, getAllDevices);
-
-// READ ONE
-router.get('/:id' ,protect,  getDeviceById);
-
-// UPDATE
-router.put('/:id',  protect,  updateDevice);
-
-// DELETE
-router.delete('/:id',  protect, deleteDevice);
+// ----------------------
+// Zigbee-Gateway Endpoint
+// ----------------------
+router.post('/:gatewayId/zigbee', protect, addZigbeeDeviceToGateway);
 
 module.exports = router;

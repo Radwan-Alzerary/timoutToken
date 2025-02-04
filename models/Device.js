@@ -35,10 +35,12 @@ const deviceSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  gatewayDevice: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Device'
-  }],
+  gatewayDevice: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Device',
+    },
+  ],
 
   // Networking
   ipAddress: String,
