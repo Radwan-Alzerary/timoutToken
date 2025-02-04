@@ -13,6 +13,7 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  devices:[{type: mongoose.Schema.Types.ObjectId, ref: 'Device' }]
 });
 
 // Hash password before saving

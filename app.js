@@ -88,7 +88,7 @@ io.on('connection', (socket) => {
     }
 
     // Construct the MQTT topic, e.g., "commands/<deviceId>"
-    const topic = `Command/${JsonData.uuid}`;
+    const topic = `ASWAR/${JsonData.uuid}/Command/`;
 
     // Publish the message to the MQTT broker.
     mqttClient.publish(topic, JSON.stringify(data), (err) => {
@@ -114,7 +114,7 @@ io.on('connection', (socket) => {
     }
 
     // Construct the MQTT topic, e.g., "commands/<deviceId>"
-    const topic = `status/${JsonData.uuid}`;
+    const topic = `ASWAR/${JsonData.uuid}/Status`;
 
     // Publish the message to the MQTT broker.
     mqttClient.publish(topic, JSON.stringify(data), (err) => {
