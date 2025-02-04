@@ -77,7 +77,7 @@ io.on('connection', (socket) => {
   console.log(`New client connected: ${socket.id}`);
 
   // Listen for a custom "data" event from clients
-  socket.on('data', (data) => {
+  socket.on('Command', (data) => {
     console.log('Received data via socket:', data);
     const JsonData  =  JSON.parse(data)
     console.log(data)
@@ -88,7 +88,7 @@ io.on('connection', (socket) => {
     }
 
     // Construct the MQTT topic, e.g., "commands/<deviceId>"
-    const topic = `aswar/${JsonData.uuid}`;
+    const topic = `Command/${JsonData.uuid}`;
 
     // Publish the message to the MQTT broker.
     mqttClient.publish(topic, JSON.stringify(data), (err) => {
@@ -102,6 +102,33 @@ io.on('connection', (socket) => {
     // Optionally, broadcast the data to all connected Socket.IO clients
     io.emit('data', data);
   });
+
+  socket.on('status', (data) => {
+    console.log('Received data via socket:', data);
+    const JsonData = JSON.parse(data)
+    console.log(data)
+    // Ensure that the data object contains an "id" property.
+    if (!JsonData.uuid) {
+      console.error('Data does not contain an "id" property. Cannot determine MQTT topic.');
+      return;
+    }
+
+    // Construct the MQTT topic, e.g., "commands/<deviceId>"
+    const topic = `status/${JsonData.uuid}`;
+
+    // Publish the message to the MQTT broker.
+    mqttClient.publish(topic, JSON.stringify(data), (err) => {
+      if (err) {
+        console.error('Failed to publish to MQTT topic:', topic, err);
+      } else {
+        console.log(`Published data to MQTT topic "${topic}"`);
+      }
+    });
+
+    // Optionally, broadcast the data to all connected Socket.IO clients
+    io.emit('data', data);
+  });
+
 
   // Handle client disconnect
   socket.on('disconnect', () => {
