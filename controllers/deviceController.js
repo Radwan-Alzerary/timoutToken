@@ -220,3 +220,78 @@ exports.addZigbeeDeviceToGateway = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+exports.getAllZigbeeDevicesForGateway = async (req, res) => {
+    try {
+      const { gatewayId } = req.params;
+  
+      // 1. Find the gateway device
+      const gatewayDevice = await Device.findById(gatewayId).populate('gatewayDevice');
+      if (!gatewayDevice) {
+        return res.status(404).json({ message: 'Gateway device not found' });
+      }
+  
+      if (!gatewayDevice.isGateway) {
+        return res.status(400).json({ message: 'Provided device is not a gateway' });
+      }
+  
+      // 2. Filter sub-devices to only Zigbee devices
+      const zigbeeDevices = gatewayDevice.gatewayDevice.filter(
+        (subDev) => subDev.deviceType === 'ZigbeeDevice'
+      );
+  
+      return res.status(200).json(zigbeeDevices);
+    } catch (error) {
+      console.error('Error fetching Zigbee devices:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  };
+  
+  exports.removeZigbeeDeviceFromGateway = async (req, res) => {
+    try {
+      const { gatewayId, zigbeeDeviceId } = req.params;
+  
+      // 1. Find the gateway
+      const gatewayDevice = await Device.findById(gatewayId);
+      if (!gatewayDevice) {
+        return res.status(404).json({ message: 'Gateway device not found' });
+      }
+      if (!gatewayDevice.isGateway) {
+        return res.status(400).json({ message: 'Provided device is not a gateway' });
+      }
+  
+      // 2. Check if zigbeeDeviceId is in gateway's array
+      const isAttached = gatewayDevice.gatewayDevice.some(
+        (id) => id.toString() === zigbeeDeviceId
+      );
+      if (!isAttached) {
+        return res.status(404).json({ message: 'Zigbee device not found in this gateway' });
+      }
+  
+      // 3. Remove zigbeeDeviceId from gatewayDevice array
+      gatewayDevice.gatewayDevice = gatewayDevice.gatewayDevice.filter(
+        (id) => id.toString() !== zigbeeDeviceId
+      );
+      await gatewayDevice.save();
+  
+      // 4. Delete the Zigbee device from DB
+      const zigbeeDevice = await Device.findById(zigbeeDeviceId);
+      if (!zigbeeDevice) {
+        // If somehow it doesn't exist, stop here
+        return res.status(404).json({ message: 'Zigbee device not found in the database' });
+      }
+  
+      // Remove from user's devices array
+      await User.findByIdAndUpdate(zigbeeDevice.owner, {
+        $pull: { devices: zigbeeDeviceId },
+      });
+  
+      // Finally, remove the device document
+      await zigbeeDevice.deleteOne();
+  
+      return res.status(200).json({ message: 'Zigbee device removed from gateway and deleted' });
+    } catch (error) {
+      console.error('Error removing Zigbee device from gateway:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  };
